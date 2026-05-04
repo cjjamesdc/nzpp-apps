@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SI-3231 Overtime/Comp Authorization</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: "Times New Roman", Times, serif;
+  font-size: 10.5pt;
+  background: #fff;
+  color: #000;
+  padding: 0.3in 0.4in;
+  max-width: 11in;
+  margin: 0 auto;
+}
+body::before {
+  content: "SAMPLE";
+  position: fixed;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%) rotate(-30deg);
+  font-size: 130pt; font-weight: bold;
+  font-family: "Times New Roman", Times, serif;
+  color: rgba(0,0,0,0.06);
+  pointer-events: none; z-index: 9999; white-space: nowrap;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+.action-bar {
+  display: flex; gap: 6px; justify-content: flex-end;
+  margin-bottom: 6px; flex-wrap: wrap;
+}
+.action-bar button {
+  font-family: "Times New Roman", Times, serif; font-size: 10pt;
+  padding: 3px 14px; border: 1px solid #444; background: #fff; cursor: pointer;
+  white-space: nowrap;
+}
+.action-bar button:hover { background: #e8e8e8; }
+.action-bar button.primary { background: #8aab72; color: #fff; border-color: #8aab72; }
+.action-bar button.primary:hover { background: #789e60; }
+@page {
+  margin: 0mm;
+  size: letter;
+}
+@media print {
+  html, body { margin: 0; padding: 0; }
+  body { padding: 0.35in 0.4in !important; }
+  .action-bar { display: none; }
+  body { padding: 0.2in 0.3in; }
+}
+.fw { border: 1.5px solid #000; width: 100%; }
+.hdr { display: flex; border-bottom: 1.5px solid #000; }
+.hdr-left { flex: 1; padding: 4px 7px 3px; border-right: 1px solid #000; }
+.hdr-agency { font-size: 7pt; text-transform: uppercase; letter-spacing: 0.6px; }
+.hdr-title { font-size: 10.5pt; white-space: nowrap; font-weight: bold; text-transform: uppercase; letter-spacing: 0.1px; line-height: 1.15; }
+.hdr-right { width: 115px; padding: 4px 7px 3px; text-align: right; display: flex; flex-direction: column; justify-content: space-between; }
+.hdr-formnum { font-size: 8.5pt; font-weight: bold; }
+.hdr-rev { font-size: 7.5pt; color: #444; }
+.shdr {
+  background: #b0b0b0; -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  font-size: 7.5pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;
+  padding: 2px 6px; border-bottom: 1px solid #000;
+}
+.arow { display: flex; border-bottom: 1px solid #000; }
+.ac {
+  display: flex; flex-direction: column; justify-content: flex-end;
+  padding: 2px 5px 2px; border-right: 1px solid #000; flex: 1;
+}
+.ac:last-child { border-right: none; }
+.ac.w2 { flex: 2; } .ac.w3 { flex: 3; } .ac.w4 { flex: 4; }
+.albl { font-size: 7pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.3px; color: #222; }
+input[type="text"], input[type="date"], select {
+  border: none; border-bottom: 1px solid transparent; background: transparent;
+  font-family: "Times New Roman", Times, serif; font-size: 10.5pt;
+  width: 100%; padding: 0 2px; outline: none; color: #000; min-height: 18px;
+}
+input:focus, select:focus { background: #f0f4ff; border-bottom-color: #000; }
+select { cursor: pointer; }
+.etbl { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.etbl th {
+  background: #c8c8c8; -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  font-size: 7.5pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.3px;
+  padding: 3px 4px; border-right: 1px solid #000; border-bottom: 1.5px solid #000;
+  text-align: left; vertical-align: bottom; line-height: 1.2;
+}
+.etbl th:last-child { border-right: none; }
+.etbl td {
+  border-right: 1px solid #000;
+  padding: 1px 4px; vertical-align: middle; overflow: hidden;
+}
+.etbl td:last-child { border-right: none; }
+.etbl tr:nth-child(even) td { background: #e0e0e0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+.etbl input[type="text"], .etbl select { font-size: 10pt; min-height: 20px; }
+.choice-select {
+  font-size: 9pt !important;
+  text-overflow: ellipsis;
+}
+.unit-default-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 3px 6px; border-top: 1px solid #000; border-bottom: 1px solid #000;
+  background: #edf3e8;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+.unit-default-row .albl { white-space: nowrap; color: #2f4a25; }
+.unit-default-row select {
+  max-width: 260px; font-size: 9pt; min-height: 18px;
+  border-bottom-color: #789e60;
+}
+.etbl td.unit-cell { position: relative; }
+.unit-wrap { display: flex; align-items: center; gap: 3px; }
+.unit-wrap select { min-width: 0; }
+.unit-other { display: none; width: 38px !important; text-align: center; text-transform: uppercase; font-size: 8pt !important; }
+.unit-other.active { display: inline-block; }
+.rn { font-size: 7.5pt; font-weight: bold; text-align: center; color: #555; padding: 0 2px; }
+.ti { width: 100%; text-align: center; font-variant-numeric: tabular-nums; font-size: 10pt; }
+.tc {
+  font-weight: bold; font-size: 10pt; text-align: center; font-variant-numeric: tabular-nums;
+  background: #e0e0e0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+.err { display: block; color: #c00; font-size: 6pt; line-height: 1; }
+.grand td {
+  background: #b0b0b0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  font-weight: bold; font-size: 10pt; padding: 3px 6px;
+  border-right: 1px solid #000; border-top: 1.5px solid #000; border-bottom: none;
+}
+.grand td:last-child { border-right: none; }
+.auth { padding: 3px 7px 4px; border-top: 1.5px solid #000; }
+.auth-cert { font-size: 7.5pt; font-style: italic; margin-bottom: 5px; line-height: 1.35; }
+.auth-grid { display: grid; grid-template-columns: 2.2fr 0.9fr 2.2fr 0.9fr; gap: 0 10px; margin-bottom: 3px; }
+.afl { font-size: 6.5pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.3px; color: #222; margin-bottom: 1px; }
+.aline { border-bottom: 1px solid #000; min-height: 19px; }
+.aline input { border: none; background: transparent; font-family: "Times New Roman", Times, serif; font-size: 10pt; width: 100%; outline: none; }
+.retain { font-size: 7pt; color: #555; margin-top: 2px; }
+.footer-line {
+  margin-top: 5px; border-top: 1px solid #ccc; padding-top: 3px;
+  font-size: 7pt; color: #666; text-align: center; line-height: 1.6;
+}
+@media print {
+  .shdr { background: #b0b0b0 !important; }
+  .etbl th { background: #c8c8c8 !important; }
+  .grand td { background: #b0b0b0 !important; }
+  .tc { background: #e0e0e0 !important; }
+  input, select { background: transparent !important; }
+  .unit-default-row { display: none; }
+  .etbl td.unit-cell { overflow: hidden; }
+  .etbl tr:nth-child(even) td { background: #e0e0e0 !important; }
+  .footer-line { display: none; }
+  select {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+  }
+  select.unselected { visibility: hidden; }
+}
+</style>
+</head>
+<body>
+
+<div class="action-bar">
+  <button onclick="clearForm()">Clear Form</button>
+  <button class="primary" onclick="window.print()">Print / Save PDF</button>
+</div>
+
+<div class="fw">
+  <div class="hdr">
+    <div class="hdr-left">
+      <div class="hdr-agency">Smithsonian Institution &nbsp;|&nbsp; Office of Protection Services</div>
+      <div class="hdr-title">Overtime / Compensatory Time Authorization and Utilization Record</div>
+    </div>
+    <div class="hdr-right">
+      <div class="hdr-formnum">Form SI-3231</div>
+      <div class="hdr-rev">Revised 05/2026</div>
+    </div>
+  </div>
+
+  <div class="shdr">Administrative Information</div>
+
+  <!-- Row 1: Date | Pay Period | Sponsoring Unit | Request # -->
+  <div class="arow">
+    <div class="ac">
+      <div class="albl">Date</div>
+      <input type="date" id="hdr-date">
+    </div>
+    <div class="ac w2">
+      <div class="albl">Pay Period</div>
+      <input type="text" id="hdr-pp" placeholder="e.g. PP 14-2026" maxlength="20">
+    </div>
+    <div class="ac w3">
+      <div class="albl">Sponsoring Unit</div>
+      <input type="text" id="hdr-unit">
+    </div>
+    <div class="ac w2" style="border-right:none;">
+      <div class="albl">Request #</div>
+      <input type="text" id="hdr-reqnum" maxlength="30">
+    </div>
+  </div>
+
+  <!-- Row 2: Event Name / Description -->
+  <div class="arow" style="border-bottom:none;">
+    <div class="ac" style="border-right:none;">
+      <div class="albl">Event Name / Description</div>
+      <input type="text" id="hdr-event">
+    </div>
+  </div>
+
+  <div class="shdr" style="border-top:1px solid #000;">Employee Overtime Entries</div>
+  <div class="unit-default-row">
+    <div class="albl">Default Unit</div>
+    <select id="default-unit" onchange="applyDefaultUnit(this.value)"></select>
+  </div>
+
+  <table class="etbl">
+    <colgroup>
+      <col style="width:22px">
+      <col style="width:22.5%">
+      <col style="width:9%">
+      <col style="width:19%">
+      <col style="width:14%">
+      <col style="width:9%">
+      <col style="width:9%">
+      <col style="width:7%">
+    </colgroup>
+    <thead>
+      <tr>
+        <th style="text-align:center; padding:1px 1px;">#</th>
+        <th>Employee Name</th>
+        <th style="text-align:center;">Unit<br>Assigned</th>
+        <th>Event Type</th>
+        <th>Compensation</th>
+        <th style="text-align:center;">Start Time<br>(HHMM)</th>
+        <th style="text-align:center;">End Time<br>(HHMM)</th>
+        <th style="text-align:center;">Total Hrs</th>
+      </tr>
+    </thead>
+    <tbody id="emp-tbody"></tbody>
+    <tfoot>
+      <tr class="grand">
+        <td colspan="7" style="text-align:right; font-size:8pt; letter-spacing:0.3px;">Total Overtime Hours - All Employees</td>
+        <td style="text-align:center;" id="grand-total">0.00</td>
+      </tr>
+    </tfoot>
+  </table>
+
+  <div class="auth">
+    <div class="shdr" style="margin: 0 -7px 5px; padding-left:7px;">Authorization and Certification</div>
+    <div class="auth-cert">
+      I certify that the overtime listed above was authorized and that the hours indicated were worked as recorded.
+    </div>
+    <div class="auth-grid">
+      <div>
+        <div class="afl">Event OIC: Print Name / Signature</div>
+        <div class="aline"><input type="text" id="oic-name"></div>
+      </div>
+      <div>
+        <div class="afl">Date</div>
+        <div class="aline"><input type="date" id="oic-date"></div>
+      </div>
+      <div>
+        <div class="afl">Authorizing Official (Delegated): Print Name / Signature</div>
+        <div class="aline"><input type="text" id="auth-name"></div>
+      </div>
+      <div>
+        <div class="afl">Date</div>
+        <div class="aline"><input type="date" id="auth-date"></div>
+      </div>
+    </div>
+    <div class="retain">Signature lines to be completed on printed copy. Retain completed form for six (6) years per SI records retention policy. / <strong>FORM SI-3231 is in beta development. For defects, field requests, or operational feedback contact the form administrator: jamescj@si.edu</strong></div>
+  </div>
+</div>
+
+<div class="footer-line">
+  Questions or feedback: <strong>jamescj@si.edu</strong> &nbsp;|&nbsp; SI-3231 Revised 05/2026
+</div>
+
+<script>
+const PAYMENT_CATS = ["-- Select Event Type --","Personnel Shortage","Supervisor Shortage","Control Room Operator","Reimbursable","Non-Reimbursable Misc."];
+const OT_TYPES = ["-- Select Compensation --","Overtime","Comp Time","Involuntary Overtime","Involuntary Comp Time"];
+const STORAGE_KEY = "si3231FormState";
+const UNITS = [
+  { code: "", name: "-- Select --" },
+  { code: "AIB", name: "Arts and Industries Building" },
+  { code: "CHSDM", name: "Cooper Hewitt Smithsonian Design Museum (New York)" },
+  { code: "HMSG", name: "Hirshhorn Museum and Sculpture Garden" },
+  { code: "MCI", name: "Museum Conservation Institute" },
+  { code: "MSC", name: "Museum Support Center (Silver Hill Suitland MD)" },
+  { code: "NASM", name: "National Air and Space Museum (Mall)" },
+  { code: "NASM-HZ", name: "National Air and Space Museum Udvar-Hazy Center (Chantilly VA)" },
+  { code: "NMAA", name: "National Museum of Asian Art" },
+  { code: "NMAAHC", name: "National Museum of African American History and Culture" },
+  { code: "NMAFA", name: "National Museum of African Art" },
+  { code: "NMAH", name: "National Museum of American History" },
+  { code: "NMAI", name: "National Museum of the American Indian (Mall)" },
+  { code: "NMAI", name: "National Museum of the American Indian Heye Center (New York)" },
+  { code: "NMAL", name: "National Museum of the American Latino" },
+  { code: "NMNH", name: "National Museum of Natural History" },
+  { code: "NPG", name: "National Portrait Gallery" },
+  { code: "NPM", name: "National Postal Museum" },
+  { code: "NZPP", name: "National Zoological Park Police" },
+  { code: "QUAD", name: "Quadrangle Complex (Ripley Center)" },
+  { code: "SAAM", name: "Smithsonian American Art Museum" },
+  { code: "SAO", name: "Smithsonian Astrophysical Observatory" },
+  { code: "SAWHM", name: "Smithsonian American Womens History Museum" },
+  { code: "SCBI", name: "Smithsonian Conservation Biology Institute (Front Royal VA)" },
+  { code: "SERC", name: "Smithsonian Environmental Research Center (Edgewater MD)" },
+  { code: "SIB", name: "Smithsonian Institution Building (Castle)" },
+  { code: "SOPS", name: "Smithsonian Office of Protection Services" },
+  { code: "STRI", name: "Smithsonian Tropical Research Institute (Panama)" },
+  { code: "OTHER", name: "Other" }
+];
+const NUM_ROWS = 15;
+let defaultUnitCode = "";
+let isRestoringState = false;
+
+function unitOptionHtml(o) {
+  if (!o.code) return `<option value="">${o.name}</option>`;
+  const label = o.code === "OTHER" ? "Other" : `${o.code} - ${o.name}`;
+  return `<option value="${o.code}" data-full="${label}">${label}</option>`;
+}
+
+function orderedUnits() {
+  if (!defaultUnitCode) return UNITS;
+  const preferred = UNITS.filter(o => o.code === defaultUnitCode && o.code !== "OTHER");
+  const remaining = UNITS.filter(o => !o.code || o.code === "OTHER" || o.code !== defaultUnitCode);
+  return [remaining[0], ...preferred, ...remaining.slice(1)];
+}
+
+function buildUnitOptions() {
+  return orderedUnits().map(unitOptionHtml).join("");
+}
+
+function buildDefaultUnitSelect() {
+  const select = document.getElementById("default-unit");
+  select.innerHTML = UNITS
+    .filter(o => o.code !== "OTHER")
+    .map(unitOptionHtml)
+    .join("");
+}
+
+function buildRows() {
+  const tbody = document.getElementById("emp-tbody");
+  for (let i = 1; i <= NUM_ROWS; i++) {
+    const catOpts  = PAYMENT_CATS.map(o => `<option>${o}</option>`).join("");
+    const typeOpts = OT_TYPES.map(o => `<option>${o}</option>`).join("");
+    const unitOpts = buildUnitOptions();
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="rn">${i}</td>
+      <td><input type="text" id="name-${i}" maxlength="45" oninput="scaleName(this)"></td>
+      <td class="unit-cell" style="text-align:center;">
+        <div class="unit-wrap">
+          <select class="unit-select" id="unit-${i}" style="font-size:9pt;" onchange="handleUnitChange(${i})" onfocus="showUnitNames(this)" onblur="showUnitCode(this)">${unitOpts}</select>
+          <input class="unit-other" type="text" id="unit-other-${i}" maxlength="10" placeholder="Code" oninput="formatUnitCode(this)" onblur="showUnitCode(document.getElementById('unit-${i}'))">
+        </div>
+      </td>
+      <td><select class="choice-select" id="cat-${i}">${catOpts}</select></td>
+      <td><select class="choice-select" id="type-${i}">${typeOpts}</select></td>
+      <td style="text-align:center;">
+        <input class="ti" type="text" id="start-${i}" placeholder="0000" maxlength="4"
+          oninput="numOnly(this); calcRow(${i})"
+          onblur="validateTime(this,'se-${i}'); calcRow(${i})">
+        <span class="err" id="se-${i}"></span>
+      </td>
+      <td style="text-align:center;">
+        <input class="ti" type="text" id="end-${i}" placeholder="0000" maxlength="4"
+          oninput="numOnly(this); calcRow(${i})"
+          onblur="validateTime(this,'ee-${i}'); calcRow(${i})">
+        <span class="err" id="ee-${i}"></span>
+      </td>
+      <td class="tc" id="total-${i}">--</td>`;
+    tbody.appendChild(tr);
+  }
+}
+
+function saveFormState() {
+  if (isRestoringState) return;
+  const fields = {};
+  document.querySelectorAll("input, select").forEach(el => {
+    if (el.id) fields[el.id] = el.value;
+  });
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      defaultUnitCode,
+      fields
+    }));
+  } catch (err) {
+    // Some locked-down browsers disable localStorage for file pages.
+  }
+}
+
+function restoreFormState() {
+  let saved;
+  try {
+    saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+  } catch (err) {
+    saved = null;
+  }
+  if (!saved || !saved.fields) return;
+
+  isRestoringState = true;
+  defaultUnitCode = saved.fields["default-unit"] || saved.defaultUnitCode || "";
+  const defaultSelect = document.getElementById("default-unit");
+  if (defaultSelect) defaultSelect.value = defaultUnitCode;
+
+  for (let i = 1; i <= NUM_ROWS; i++) {
+    const unitSelect = document.getElementById(`unit-${i}`);
+    if (unitSelect) unitSelect.innerHTML = buildUnitOptions();
+  }
+
+  Object.keys(saved.fields).forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = saved.fields[id];
+  });
+
+  for (let i = 1; i <= NUM_ROWS; i++) {
+    const other = document.getElementById(`unit-other-${i}`);
+    const unitSelect = document.getElementById(`unit-${i}`);
+    if (other && unitSelect) {
+      other.classList.toggle("active", unitSelect.value === "OTHER");
+      showUnitCode(unitSelect);
+    }
+    const name = document.getElementById(`name-${i}`);
+    if (name) scaleName(name);
+    calcRow(i);
+  }
+  isRestoringState = false;
+}
+
+function applyDefaultUnit(code) {
+  const previousDefaultCode = defaultUnitCode;
+  defaultUnitCode = code;
+  for (let i = 1; i <= NUM_ROWS; i++) {
+    const select = document.getElementById(`unit-${i}`);
+    const currentValue = select.value;
+    const other = document.getElementById(`unit-other-${i}`);
+    const otherValue = other.value;
+    select.innerHTML = buildUnitOptions();
+    select.value = (!currentValue || currentValue === previousDefaultCode) ? defaultUnitCode : currentValue;
+    if (currentValue === "OTHER") {
+      other.value = otherValue;
+      other.classList.add("active");
+    }
+    showUnitCode(select);
+  }
+  saveFormState();
+}
+
+function showUnitCode(select) {
+  const rowNum = select.id.split("-")[1];
+  const other = document.getElementById(`unit-other-${rowNum}`);
+  Array.from(select.options).forEach(opt => {
+    if (opt.value && opt.value !== "OTHER") opt.textContent = opt.value;
+    if (opt.value === "OTHER") opt.textContent = select.value === "OTHER" && other.value ? other.value : "Other";
+  });
+}
+function showUnitNames(select) {
+  Array.from(select.options).forEach(opt => {
+    if (opt.dataset.full) opt.textContent = opt.dataset.full;
+  });
+}
+function handleUnitChange(n) {
+  const select = document.getElementById(`unit-${n}`);
+  const other = document.getElementById(`unit-other-${n}`);
+  const isOther = select.value === "OTHER";
+  other.classList.toggle("active", isOther);
+  if (!isOther) other.value = "";
+  showUnitCode(select);
+}
+function formatUnitCode(el) {
+  el.value = el.value.replace(/[^a-zA-Z0-9-]/g,"").toUpperCase().slice(0,10);
+  const rowNum = el.id.split("-")[2];
+  showUnitCode(document.getElementById(`unit-${rowNum}`));
+}
+
+function scaleName(el) {
+  const len = el.value.length;
+  el.style.fontSize = len <= 29 ? '10pt' : len <= 38 ? '8.5pt' : '7pt';
+}
+function numOnly(el) { el.value = el.value.replace(/[^0-9]/g,"").slice(0,4); }
+function validateTime(el, errId) {
+  const v = el.value, e = document.getElementById(errId);
+  if (!v) { e.textContent=""; return true; }
+  if (v.length !== 4) { e.textContent="HHMM"; return false; }
+  // 0001 passes through unchanged
+  if (v === "0001") { e.textContent=""; return true; }
+  const hh = parseInt(v.slice(0,2),10), mm = parseInt(v.slice(2,4),10);
+  const valid = (hh < 24 && mm <= 59) || (hh === 24 && mm === 0);
+  if (!valid) { e.textContent="Invalid"; return false; }
+  // Snap minutes to nearest 15
+  const totalMins = hh * 60 + mm;
+  const snapped = Math.round(totalMins / 15) * 15;
+  let snapHH = Math.floor(snapped / 60);
+  let snapMM = snapped % 60;
+  // Handle 2400 snap
+  if (snapHH >= 24) { snapHH = 24; snapMM = 0; }
+  const snappedStr = String(snapHH).padStart(2,'0') + String(snapMM).padStart(2,'0');
+  el.value = snappedStr;
+  e.textContent=""; return true;
+}
+function parseTime(v) {
+  if (!v || v.length !== 4) return null;
+  // 0001 normalizes to midnight (0 minutes)
+  if (v === "0001") return 0;
+  const hh = parseInt(v.slice(0,2),10), mm = parseInt(v.slice(2,4),10);
+  const valid = (hh < 24 && mm <= 59) || (hh === 24 && mm === 0);
+  if (!valid) return null;
+  return hh === 24 ? 1440 : hh * 60 + mm;
+}
+function roundTo15(minutes) {
+  // Round to nearest 15-minute increment
+  return Math.round(minutes / 15) * 15;
+}
+function calcRow(n) {
+  const s = parseTime(document.getElementById(`start-${n}`).value);
+  const e = parseTime(document.getElementById(`end-${n}`).value);
+  const el = document.getElementById(`total-${n}`);
+  if (s === null || e === null) { el.textContent="--"; updateGrand(); return; }
+  let d = e - s;
+  if (d < 0) d += 1440;
+  d = roundTo15(d);
+  el.textContent = (d/60).toFixed(2);
+  updateGrand();
+}
+function updateGrand() {
+  let t = 0;
+  for (let i = 1; i <= NUM_ROWS; i++) {
+    const v = parseFloat(document.getElementById(`total-${i}`).textContent);
+    if (!isNaN(v)) t += v;
+  }
+  document.getElementById("grand-total").textContent = t.toFixed(2);
+}
+function clearForm() {
+  if (!confirm("Clear all form data?")) return;
+  document.querySelectorAll("input").forEach(el => el.value="");
+  document.querySelectorAll("select:not(#default-unit)").forEach(el => el.selectedIndex=0);
+  document.querySelectorAll(".unit-other").forEach(el => el.classList.remove("active"));
+  applyDefaultUnit(defaultUnitCode);
+  for (let i = 1; i <= NUM_ROWS; i++) {
+    document.getElementById(`total-${i}`).textContent="--";
+    document.getElementById(`se-${i}`).textContent="";
+    document.getElementById(`ee-${i}`).textContent="";
+  }
+  document.getElementById("grand-total").textContent="0.00";
+  saveFormState();
+}
+
+buildRows();
+buildDefaultUnitSelect();
+restoreFormState();
+document.addEventListener("input", saveFormState);
+document.addEventListener("change", saveFormState);
+document.addEventListener("focusout", saveFormState);
+
+// Before printing, mark selects at index 0 as unselected so they print blank
+window.addEventListener('beforeprint', function() {
+  document.querySelectorAll('select').forEach(function(s) {
+    if (s.selectedIndex === 0) s.classList.add('unselected');
+    else s.classList.remove('unselected');
+  });
+});
+window.addEventListener('afterprint', function() {
+  document.querySelectorAll('select').forEach(function(s) {
+    s.classList.remove('unselected');
+  });
+});
+</script>
+</body>
+</html>
